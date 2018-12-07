@@ -1,3 +1,4 @@
+/* $Id: CtpPacket.nc,v 1.5 2007-11-28 04:42:52 rincon Exp $ */
 /*
  * Copyright (c) 2006 Stanford University.
  * All rights reserved.
@@ -29,63 +30,43 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "Ctp.h"
-
 /**
- * A data collection service that uses a tree routing protocol
- * to deliver data to collection roots, following TEP 119.
+ *  ADT for CTP data frames.
  *
- * @author Rodrigo Fonseca
- * @author Omprakash Gnawali
- * @author Kyle Jamieson
- * @author Philip Levis
+ *  @author Philip Levis
+ *  @author Kyle Jamieson
+ *  @date   $Date: 2007-11-28 04:42:52 $
  */
 
+#include <AM.h>
+#include "Ctp.h"
+   
+interface CtpPacket {
+  // Sets the given options bit.
+  command void          setOption(message_t* msg, ctp_options_t option);
 
-configuration CollectionC {
-  provides {
-    interface StdControl;
-    interface Send[uint8_t client];
-    interface Receive[collection_id_t id];
-    interface Receive as Snoop[collection_id_t];
-    interface Intercept[collection_id_t id];
+  // Clears the given options bit.
+  command void          clearOption(message_t* msg, ctp_options_t option);
 
-    interface Packet;
-    interface CollectionPacket;
-    interface CtpPacket;
-    interface CtpInfoForward;
-    interface CtpInfo;
-    interface CtpCongestion;
-    interface RootControl;
-    interface UnicastNameFreeRoutingDual;
-  }
+  // Returns TRUE iff all of the given options bits are set.
+  command bool          option(message_t* msg, ctp_options_t opt);
 
-  uses {
-    interface CollectionId[uint8_t client];
-    interface CollectionDebug;
-  }
+  command uint8_t       getThl(message_t* msg);
+  command void          setThl(message_t* msg, uint8_t thl);
+
+  command uint16_t      getEtx(message_t* msg);
+  command void          setEtx(message_t* msg, uint16_t etx);
+
+  command am_addr_t     getOrigin(message_t* msg);
+  command void          setOrigin(message_t* msg, am_addr_t addr);
+
+  command uint8_t       getSequenceNumber(message_t* msg);
+  command void          setSequenceNumber(message_t* msg, uint8_t seqno);
+
+  command uint8_t       getType(message_t* msg);
+  command void          setType(message_t* msg, uint8_t id);
+
+  command bool          matchInstance(message_t* m1, message_t* m2);
+  command bool          matchPacket(message_t* m1, message_t* m2);
+
 }
-
-implementation {
-  components CtpP;
-
-  StdControl = CtpP;
-  Send = CtpP;
-  Receive = CtpP.Receive;
-  Snoop = CtpP.Snoop;
-  Intercept = CtpP;
-
-  Packet = CtpP;
-  CollectionPacket = CtpP;
-  CtpPacket = CtpP;
-
-  CtpInfo = CtpP;
-  CtpInfoForward = CtpP;
-  CtpCongestion = CtpP;
-  RootControl = CtpP;
-  UnicastNameFreeRoutingDual = CtpP;
-
-  CollectionId = CtpP;
-  CollectionDebug = CtpP;
-}
-

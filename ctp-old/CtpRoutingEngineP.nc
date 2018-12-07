@@ -51,7 +51,7 @@
  *
  *  <p>The tree is proactively maintained by periodic beacons sent by each
  *  node. These beacons are jittered in time to prevent synchronizations in the
- *  network. All nodes maintain the same <i>average</i> beacon sending1 rate
+ *  network. All nodes maintain the same <i>average</i> beacon sending rate
  *  (defined by BEACON_INTERVAL +- 50%). The beacon contains the node's parent,
  *  the current hopcount, and the cumulative path quality metric. The metric is
  *  defined as the parent's metric plus the bidirectional quality of the link
@@ -106,7 +106,7 @@
 
 generic module CtpRoutingEngineP(uint8_t routingTableSize, uint32_t minInterval, uint32_t maxInterval) {
     provides {
-        interface UnicastNameFreeRoutingDual as Routing;
+        interface UnicastNameFreeRouting as Routing;
         interface RootControl;
         interface CtpInfo;
         interface StdControl;
@@ -145,27 +145,24 @@ implementation {
 
     bool ECNOff = TRUE;
 
-    /* Keeps track of whether the radio is on. No sense updating or sending1
+    /* Keeps track of whether the radio is on. No sense updating or sending
      * beacons if radio is off */
     bool radioOn = FALSE;
     /* Controls whether the node's periodic timer will fire. The node will not
      * send any beacon, and will not update the route. Start and stop control this. */
     bool running = FALSE;
     /* Guards the beacon buffer: only one beacon being sent at a time */
-    bool sending1 = FALSE;
-    bool sending2 = FALSE;
+    bool sending = FALSE;
 
     /* Tells updateNeighbor that the parent was just evicted.*/ 
-    bool justEvicted1 = FALSE;
-    bool justEvicted2 = FALSE;
+    bool justEvicted = FALSE;
 
     route_info_t routeInfo1;
     route_info_t routeInfo2;
     bool state_is_root;
     am_addr_t my_ll_addr;
 
-    message_t beaconMsgBuffer1;
-    message_t beaconMsgBuffer2;
+    message_t beaconMsgBuffer;
     ctp_routing_header_t* beaconMsg;
 
     /* routing table -- routing info about neighbors */
@@ -248,11 +245,11 @@ implementation {
         routeInfoInit(&routeInfo2);
         routingTableInit();
         if(TOS_NODE_ID % 2 == 0){
-            beaconMsg = call BeaconSend1.getPayload(&beaconMsgBuffer1, call BeaconSend1.maxPayloadLength());
+            beaconMsg = call BeaconSend1.getPayload(&beaconMsgBuffer, call BeaconSend1.maxPayloadLength());
             radio = 1;
         }
         else{
-            beaconMsg = call BeaconSend2.getPayload(&beaconMsgBuffer2, call BeaconSend2.maxPayloadLength());
+            beaconMsg = call BeaconSend2.getPayload(&beaconMsgBuffer, call BeaconSend2.maxPayloadLength());
             radio = 2;
         }
         dbg("TreeRoutingCtl","TreeRouting initialized. (used payload:%d max payload:%d!\n", 
@@ -262,7 +259,7 @@ implementation {
 
     command error_t StdControl.start() {
       my_ll_addr = call AMPacket1.address();
-      //start will (re)start the sending1 of messages
+      //start will (re)start the sending of messages
       if (!running) {
     	running = TRUE;
     	resetInterval();
@@ -439,15 +436,15 @@ implementation {
                 //            ii. when choosing a next hop
                 parentChanges++;
 
-                dbg("TreeRouting","Changed parent. from %d to %d\n", routeInfo1.parent, best1->neighbor);
-                call CollectionDebug.logEventDbg(NET_C_TREE_NEW_PARENT, best1->neighbor, best1->info.etx, minEtx1);
-                call LinkEstimator1.unpinNeighbor(routeInfo1.parent);
-                call LinkEstimator1.pinNeighbor(best1->neighbor);
-                call LinkEstimator1.clearDLQ(best1->neighbor);
+                dbg("TreeRouting","Changed parent. from %d to %d\n", routeInfo1.parent, best->neighbor);
+                call CollectionDebug.logEventDbg(NET_C_TREE_NEW_PARENT, best->neighbor, best->info.etx, minEtx1);
+                call LinkEstimator.unpinNeighbor(routeInfo1.parent);
+                call LinkEstimator.pinNeighbor(best->neighbor);
+                call LinkEstimator.clearDLQ(best->neighbor);
 
-        routeInfo1.parent = best1->neighbor;
-        routeInfo1.etx = best1->info.etx;
-        routeInfo1.congested = best1->info.congested;
+        routeInfo1.parent = best->neighbor;
+        routeInfo1.etx = best->info.etx;
+        routeInfo1.congested = best->info.congested;
         if (currentEtx1 - minEtx1 > 20) {
           call CtpInfo.triggerRouteUpdate();
         }
@@ -457,17 +454,17 @@ implementation {
         /* Finally, tell people what happened:  */
         /* We can only loose a route to a parent if it has been evicted. If it hasn't 
          * been just evicted then we already did not have a route */
-        if (justEvicted1 && routeInfo1.parent == INVALID_ADDR) 
+        if (justEvicted && routeInfo1.parent == INVALID_ADDR) 
             signal Routing.noRoute();
         /* On the other hand, if we didn't have a parent (no currentEtx1) and now we
          * do, then we signal route found. The exception is if we just evicted the 
          * parent and immediately found a replacement route: we don't signal in this 
          * case */
-        else if (!justEvicted1 && 
+        else if (!justEvicted && 
                   currentEtx1 == MAX_METRIC &&
                   minEtx1 != MAX_METRIC)
             signal Routing.routeFound();
-        justEvicted1 = FALSE;
+        justEvicted = FALSE;
 
 
         if (minEtx2 != MAX_METRIC) {
@@ -480,15 +477,15 @@ implementation {
                 //            ii. when choosing a next hop
                 parentChanges++;
 
-                dbg("TreeRouting","Changed parent. from %d to %d\n", routeInfo2.parent, best2->neighbor);
-                call CollectionDebug.logEventDbg(NET_C_TREE_NEW_PARENT, best2->neighbor, best2->info.etx, minEtx2);
-                call LinkEstimator2.unpinNeighbor(routeInfo2.parent);
-                call LinkEstimator2.pinNeighbor(best2->neighbor);
-                call LinkEstimator2.clearDLQ(best2->neighbor);
+                dbg("TreeRouting","Changed parent. from %d to %d\n", routeInfo2.parent, best->neighbor);
+                call CollectionDebug.logEventDbg(NET_C_TREE_NEW_PARENT, best->neighbor, best->info.etx, minEtx2);
+                call LinkEstimator.unpinNeighbor(routeInfo2.parent);
+                call LinkEstimator.pinNeighbor(best->neighbor);
+                call LinkEstimator.clearDLQ(best->neighbor);
 
-        routeInfo2.parent = best2->neighbor;
-        routeInfo2.etx = best2->info.etx;
-        routeInfo2.congested = best2->info.congested;
+        routeInfo2.parent = best->neighbor;
+        routeInfo2.etx = best->info.etx;
+        routeInfo2.congested = best->info.congested;
         if (currentEtx2 - minEtx2 > 20) {
           call CtpInfo.triggerRouteUpdate();
         }
@@ -498,17 +495,17 @@ implementation {
         /* Finally, tell people what happened:  */
         /* We can only loose a route to a parent if it has been evicted. If it hasn't 
          * been just evicted then we already did not have a route */
-        if (justEvicted2 && routeInfo2.parent == INVALID_ADDR) 
+        if (justEvicted && routeInfo2.parent == INVALID_ADDR) 
             signal Routing.noRoute();
         /* On the other hand, if we didn't have a parent (no currentEtx2) and now we
          * do, then we signal route found. The exception is if we just evicted the 
          * parent and immediately found a replacement route: we don't signal in this 
          * case */
-        else if (!justEvicted2 && 
+        else if (!justEvicted && 
                   currentEtx2 == MAX_METRIC &&
                   minEtx2 != MAX_METRIC)
             signal Routing.routeFound();
-        justEvicted2 = FALSE;
+        justEvicted = FALSE;
     }
 
     
@@ -517,20 +514,21 @@ implementation {
     // only posted if running and radioOn
     task void sendBeaconTask() {
         error_t eval;
+        if (sending) {
+            return;
+        }
+        call SerialLogger.log(LOG_CURRENT_DAD,routeInfo1.parent);
+        call SerialLogger.log(LOG_SENDING_BEACON_RADIO,radio);
+
+        beaconMsg->options = 0;
+
+        /* Congestion notification: am I congested? */
+        if (call CtpCongestion.isCongested()) {
+            beaconMsg->options |= CTP_OPT_ECN;
+        }
+
         if(radio == 1){
             radio = 2;
-            if (sending1) {
-                return;
-            }
-            call SerialLogger.log(LOG_CURRENT_DAD,routeInfo1.parent);
-            call SerialLogger.log(LOG_SENDING_BEACON_RADIO,radio);
-
-            beaconMsg->options = 0;
-
-            /* Congestion notification: am I congested? */
-            if (call CtpCongestion.isCongested()) {
-                beaconMsg->options |= CTP_OPT_ECN;
-            }
             beaconMsg->parent = routeInfo1.parent;
             if (state_is_root) {
                 beaconMsg->etx = routeInfo1.etx;
@@ -549,7 +547,7 @@ implementation {
                 call CollectionDebug.logEventRoute(NET_C_TREE_SENT_BEACON, beaconMsg->parent, 0, beaconMsg->etx);
                     
                 eval = call BeaconSend1.send(AM_BROADCAST_ADDR, 
-                                                &beaconMsgBuffer1, 
+                                                &beaconMsgBuffer, 
                                                 sizeof(ctp_routing_header_t));
                
 
@@ -557,7 +555,7 @@ implementation {
                 if (eval == SUCCESS) {
                     beaconCount++;
                     call SerialLogger.log(LOG_SENT_BEACON,radio);
-                    sending1 = TRUE;
+                    sending = TRUE;
                 } else if (eval == EOFF) {
                     radioOn = FALSE;
                     dbg("TreeRoutingCtl","%s running: %d radioOn: %d\n", __FUNCTION__, running, radioOn);
@@ -566,19 +564,7 @@ implementation {
             }
         }
         else{
-             radio = 1;
-            if (sending2) {
-                return;
-            }
-            call SerialLogger.log(LOG_CURRENT_DAD,routeInfo1.parent);
-            call SerialLogger.log(LOG_SENDING_BEACON_RADIO,radio);
-
-            beaconMsg->options = 0;
-
-            /* Congestion notification: am I congested? */
-            if (call CtpCongestion.isCongested()) {
-                beaconMsg->options |= CTP_OPT_ECN;
-            }
+            radio = 1;
             beaconMsg->parent = routeInfo2.parent;
             if (state_is_root) {
                 beaconMsg->etx = routeInfo2.etx;
@@ -597,7 +583,7 @@ implementation {
                 call CollectionDebug.logEventRoute(NET_C_TREE_SENT_BEACON, beaconMsg->parent, 0, beaconMsg->etx);
                     
                 eval = call BeaconSend2.send(AM_BROADCAST_ADDR, 
-                                                &beaconMsgBuffer2, 
+                                                &beaconMsgBuffer, 
                                                 sizeof(ctp_routing_header_t));
                 
 
@@ -605,7 +591,7 @@ implementation {
                 if (eval == SUCCESS) {
                     beaconCount++;
                     call SerialLogger.log(LOG_SENT_BEACON,radio);
-                    sending2 = TRUE;
+                    sending = TRUE;
                 } else if (eval == EOFF) {
                     radioOn = FALSE;
                     dbg("TreeRoutingCtl","%s running: %d radioOn: %d\n", __FUNCTION__, running, radioOn);
@@ -616,19 +602,19 @@ implementation {
     }
 
     event void BeaconSend1.sendDone(message_t* msg, error_t error) {
-        if ((msg != &beaconMsgBuffer1) || !sending1) {
+        if ((msg != &beaconMsgBuffer) || !sending) {
             //something smells bad around here
             return;
         }
-        sending1 = FALSE;
+        sending = FALSE;
     }
 
     event void BeaconSend2.sendDone(message_t* msg, error_t error) {
-        if ((msg != &beaconMsgBuffer2) || !sending2) {
+        if ((msg != &beaconMsgBuffer) || !sending) {
             //something smells bad around here
             return;
         }
-        sending2 = FALSE;
+        sending = FALSE;
     }
 
     event void RouteTimer.fired() {
@@ -765,7 +751,7 @@ implementation {
         dbg("TreeRouting","%s\n",__FUNCTION__);
         if (routeInfo1.parent == neighbor) {
             routeInfoInit(&routeInfo1);
-            justEvicted1 = TRUE;
+            justEvicted = TRUE;
             post updateRouteTask();
         }
     }
@@ -775,7 +761,7 @@ implementation {
         dbg("TreeRouting","%s\n",__FUNCTION__);
         if (routeInfo1.parent == neighbor) {
             routeInfoInit(&routeInfo2 );
-            justEvicted2 = TRUE;
+            justEvicted = TRUE;
             post updateRouteTask();
         }
     }
@@ -783,17 +769,11 @@ implementation {
 
     /* Interface UnicastNameFreeRouting */
     /* Simple implementation: return the current routeInfo1 */
-    command am_addr_t Routing.nextHop1() {
+    command am_addr_t Routing.nextHop() {
         return routeInfo1.parent;    
     }
-    command am_addr_t Routing.nextHop2() {
-        return routeInfo2.parent;    
-    }
-    command bool Routing.hasRoute1() {
+    command bool Routing.hasRoute() {
         return (routeInfo1.parent != INVALID_ADDR);
-    }
-    command bool Routing.hasRoute2() {
-        return (routeInfo2.parent != INVALID_ADDR);
     }
    
     /* CtpInfo interface */
@@ -845,22 +825,17 @@ implementation {
             if (idx < routingTableActive1) {
                 routingTable1[idx].info.congested = congested;
             }
-            if (routeInfo1.congested && !congested) 
-            post updateRouteTask();
-        else if (routeInfo1.parent == n && congested) 
-            post updateRouteTask();
-    
         }
         else{
             if (idx < routingTableActive2) {
                 routingTable2[idx].info.congested = congested;
             }
-            if (routeInfo2.congested && !congested) 
-            post updateRouteTask();
-        else if (routeInfo2.parent == n && congested) 
-            post updateRouteTask();
         }
 
+        if (routeInfo1.congested && !congested) 
+            post updateRouteTask();
+        else if (routeInfo1.parent == n && congested) 
+            post updateRouteTask();
     }
 
     command bool CtpInfo.isNeighborCongested(am_addr_t n) {
@@ -884,11 +859,10 @@ implementation {
        
         return FALSE;
     }
-    
-    /*
+
     command uint8_t CtpInfo.current_radio(){
         return radio;
-    }*/
+    }
     
     /* RootControl interface */
     /** sets the current node as a root, if not already a root */

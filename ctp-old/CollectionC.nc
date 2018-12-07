@@ -57,7 +57,7 @@ configuration CollectionC {
     interface CtpInfo;
     interface CtpCongestion;
     interface RootControl;
-    interface UnicastNameFreeRoutingDual;
+    interface UnicastNameFreeRouting;
   }
 
   uses {
@@ -83,7 +83,7 @@ implementation {
   CtpInfoForward = CtpP;
   CtpCongestion = CtpP;
   RootControl = CtpP;
-  UnicastNameFreeRoutingDual = CtpP;
+  UnicastNameFreeRouting = CtpP;
 
   CollectionId = CtpP;
   CollectionDebug = CtpP;

@@ -1,3 +1,4 @@
+/* $Id: CtpRoutingPacket.nc,v 1.6 2009-09-21 02:19:42 gnawali Exp $ */
 /*
  * Copyright (c) 2006 Stanford University.
  * All rights reserved.
@@ -29,63 +30,29 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "Ctp.h"
-
 /**
- * A data collection service that uses a tree routing protocol
- * to deliver data to collection roots, following TEP 119.
+ *  ADT for CTP routing frames.
  *
- * @author Rodrigo Fonseca
- * @author Omprakash Gnawali
- * @author Kyle Jamieson
- * @author Philip Levis
+ *  @author Philip Levis
+ *  @author Kyle Jamieson
+ *  @date   $Date: 2009-09-21 02:19:42 $
  */
 
+#include <AM.h>
+   
+interface CtpRoutingPacket {
 
-configuration CollectionC {
-  provides {
-    interface StdControl;
-    interface Send[uint8_t client];
-    interface Receive[collection_id_t id];
-    interface Receive as Snoop[collection_id_t];
-    interface Intercept[collection_id_t id];
+  /* Allow individual options to be read, set, and reset independently */
+  command bool          getOption(message_t* ONE msg, ctp_options_t opt);
+  command void          setOption(message_t* ONE msg, ctp_options_t opt);
+  command void          clearOption(message_t* ONE msg, ctp_options_t opt);
+  
+  /* Clear all options */
+  command void          clearOptions(message_t* ONE msg);
 
-    interface Packet;
-    interface CollectionPacket;
-    interface CtpPacket;
-    interface CtpInfoForward;
-    interface CtpInfo;
-    interface CtpCongestion;
-    interface RootControl;
-    interface UnicastNameFreeRoutingDual;
-  }
+  command am_addr_t     getParent(message_t* ONE msg);
+  command void          setParent(message_t* ONE msg, am_addr_t addr);
 
-  uses {
-    interface CollectionId[uint8_t client];
-    interface CollectionDebug;
-  }
+  command uint16_t      getEtx(message_t* ONE msg);
+  command void          setEtx(message_t* ONE msg, uint16_t etx);
 }
-
-implementation {
-  components CtpP;
-
-  StdControl = CtpP;
-  Send = CtpP;
-  Receive = CtpP.Receive;
-  Snoop = CtpP.Snoop;
-  Intercept = CtpP;
-
-  Packet = CtpP;
-  CollectionPacket = CtpP;
-  CtpPacket = CtpP;
-
-  CtpInfo = CtpP;
-  CtpInfoForward = CtpP;
-  CtpCongestion = CtpP;
-  RootControl = CtpP;
-  UnicastNameFreeRoutingDual = CtpP;
-
-  CollectionId = CtpP;
-  CollectionDebug = CtpP;
-}
-

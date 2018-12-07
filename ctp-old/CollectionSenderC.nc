@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Stanford University.
+ * Copyright (c) 2007 Stanford University.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,63 +29,25 @@
  * OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "Ctp.h"
-
 /**
- * A data collection service that uses a tree routing protocol
- * to deliver data to collection roots, following TEP 119.
+ * The virtualized collection sender abstraction.
  *
- * @author Rodrigo Fonseca
- * @author Omprakash Gnawali
  * @author Kyle Jamieson
  * @author Philip Levis
+ * @date April 25 2006
+ * @see TinyOS Net2-WG
  */
 
+#include <Ctp.h>
 
-configuration CollectionC {
+generic configuration CollectionSenderC(collection_id_t collectid) {
   provides {
-    interface StdControl;
-    interface Send[uint8_t client];
-    interface Receive[collection_id_t id];
-    interface Receive as Snoop[collection_id_t];
-    interface Intercept[collection_id_t id];
-
+    interface Send;
     interface Packet;
-    interface CollectionPacket;
-    interface CtpPacket;
-    interface CtpInfoForward;
-    interface CtpInfo;
-    interface CtpCongestion;
-    interface RootControl;
-    interface UnicastNameFreeRoutingDual;
-  }
-
-  uses {
-    interface CollectionId[uint8_t client];
-    interface CollectionDebug;
   }
 }
-
 implementation {
-  components CtpP;
-
-  StdControl = CtpP;
-  Send = CtpP;
-  Receive = CtpP.Receive;
-  Snoop = CtpP.Snoop;
-  Intercept = CtpP;
-
-  Packet = CtpP;
-  CollectionPacket = CtpP;
-  CtpPacket = CtpP;
-
-  CtpInfo = CtpP;
-  CtpInfoForward = CtpP;
-  CtpCongestion = CtpP;
-  RootControl = CtpP;
-  UnicastNameFreeRoutingDual = CtpP;
-
-  CollectionId = CtpP;
-  CollectionDebug = CtpP;
+  components new CollectionSenderP(collectid, unique(UQ_CTP_CLIENT));
+  Send = CollectionSenderP;
+  Packet = CollectionSenderP;
 }
-

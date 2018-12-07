@@ -97,5 +97,6 @@ interface CtpInfo {
   command uint16_t getNeighborRouteQuality(uint8_t n);
   command am_addr_t getNeighborAddr(uint8_t n);
 
+  command uint8_t current_radio();
   command uint32_t totalBeacons();
 }

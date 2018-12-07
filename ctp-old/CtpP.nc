@@ -91,7 +91,7 @@ configuration CtpP {
     //interface LinkEstimator;
     interface CtpCongestion;
     interface RootControl; 
-    interface UnicastNameFreeRoutingDual;
+    interface UnicastNameFreeRouting;
   }
 
   uses {
@@ -160,7 +160,7 @@ implementation {
   StdControl = Router;
   StdControl = Estimator1;
   RootControl = Router;
-  UnicastNameFreeRoutingDual = Router;
+  UnicastNameFreeRouting = Router;
   
   MainC.SoftwareInit -> Router;
   Router.BeaconSend1 -> Estimator1.Send;
@@ -212,7 +212,7 @@ implementation {
   Forwarder.SubPacket1 -> RF231ActiveMessageC;
   Forwarder.SubPacket2 -> RF212ActiveMessageC;
   Forwarder.RootControl -> Router;
-  Forwarder.UnicastNameFreeRoutingDual -> Router.Routing;
+  Forwarder.UnicastNameFreeRouting -> Router.Routing;
 
   components DualRadioControlC;
   DualRadioControlC.Radio1Control -> RF231ActiveMessageC;
